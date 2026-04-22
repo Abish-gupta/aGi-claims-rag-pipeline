@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>aGi | RAG Pipeline Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        .node { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; items-center; justify-content: center; text-align: center; z-index: 10;}
+        .icon-box { background: #1e293b; border: 2px solid #334155; border-radius: 12px; padding: 12px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: all 0.3s; }
+        .node-label { margin-top: 8px; font-size: 12px; font-weight: 600; background: #0f172a; padding: 2px 8px; border-radius: 12px; border: 1px solid #334155; }
+        
+        /* Active States */
+        .node.active .icon-box { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+        .node.active .node-label { border-color: #3b82f6; color: #60a5fa; }
+        
+        .particle { position: absolute; width: 8px; height: 8px; background-color: #3b82f6; border-radius: 50%; opacity: 0; z-index: 5; box-shadow: 0 0 10px #3b82f6; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-8">
+
+    <div class="w-full max-w-5xl mb-8 flex justify-between items-end border-b border-slate-700 pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-white tracking-tight">RAG Pipeline Explorer</h1>
+            <p id="statusText" class="text-slate-400 text-sm mt-2">The pipeline is ready. Local storage is empty, and the LLM is initialized.</p>
+        </div>
+        <div class="text-right">
+            <p class="text-xs text-slate-500 font-mono tracking-widest uppercase">Phase <span id="phaseCounter" class="text-white font-bold ml-2 text-lg">0/5</span></p>
+        </div>
+    </div>
+
+    <div class="relative w-full max-w-5xl bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden" style="height: 500px;">
+        
+        <svg class="absolute inset-0 w-full h-full pointer-events-none" z-index="1">
+            <path id="line-docs-embed" d="M 150 250 L 350 250" stroke="#334155" stroke-width="2" stroke-dasharray="6,6" fill="none" />
+            <path id="line-embed-db" d="M 350 250 L 450 400" stroke="#334155" stroke-width="2" stroke-dasharray="6,6" fill="none" />
+            <path id="line-query-db" d="M 750 250 L 450 400" stroke="#334155" stroke-width="2" stroke-dasharray="6,6" fill="none" />
+            <path id="line-db-llm" d="M 450 400 L 550 250" stroke="#334155" stroke-width="2" stroke-dasharray="6,6" fill="none" />
+            <path id="line-llm-result" d="M 550 250 L 550 100" stroke="#334155" stroke-width="2" stroke-dasharray="6,6" fill="none" />
+        </svg>
+
+        <div id="node-docs" class="node" style="left: 150px; top: 250px;">
+            <div class="icon-box">📄</div>
+            <div class="node-label">RAW DOCS</div>
+        </div>
+        <div id="node-embed" class="node" style="left: 350px; top: 250px;">
+            <div class="icon-box">∑</div>
+            <div class="node-label">EMBEDDING</div>
+        </div>
+        <div id="node-query" class="node" style="left: 750px; top: 250px;">
+            <div class="icon-box">👤</div>
+            <div class="node-label">USER QUERY</div>
+        </div>
+        <div id="node-db" class="node" style="left: 450px; top: 400px;">
+            <div class="icon-box">🗄️</div>
+            <div class="node-label">VECTOR DB</div>
+        </div>
+        <div id="node-llm" class="node" style="left: 550px; top: 250px;">
+            <div class="icon-box">🤖</div>
+            <div class="node-label">LOCAL LLM</div>
+        </div>
+        <div id="node-result" class="node" style="left: 550px; top: 100px;">
+            <div class="icon-box">✅</div>
+            <div class="node-label">RESULT</div>
+        </div>
+
+        <div id="p1" class="particle"></div>
+        <div id="p2" class="particle"></div>
+    </div>
+
+    <div class="w-full max-w-5xl mt-6 flex justify-between items-center bg-slate-800 p-4 rounded-lg border border-slate-700">
+        <button onclick="resetPipeline()" class="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm font-semibold transition-colors">Reset</button>
+        <button id="nextBtn" onclick="nextPhase()" class="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded text-sm font-bold shadow-[0_0_15px_rgba(59,130,246,0.4)] transition-all">Next Step 🚀</button>
+    </div>
+
+    <script>
+        let phase = 0;
+        const descriptions = [
+            "The pipeline is ready. Local storage is empty, and the LLM is initialized.",
+            "Phase 1 (Ingestion): System receives unstructured PDFs. Chunking process starts.",
+            "Phase 2 (Embedding): Chunks are converted into numerical vectors locally.",
+            "Phase 3 (Storage): Vectors are securely stored in the local Vector DB (Zero cloud exposure).",
+            "Phase 4 (Retrieval): User query converted to vector to fetch top 3 contextual chunks.",
+            "Phase 5 (Generation): Local LLM reads only the retrieved facts and outputs structured JSON."
+        ];
+
+        function resetNodes() {
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
+            anime.remove('.particle');
+            document.querySelectorAll('.particle').forEach(p => p.style.opacity = 0);
+        }
+
+        function runParticle(particleId, pathId, duration) {
+            const path = anime.path('#' + pathId);
+            anime({
+                targets: '#' + particleId,
+                translateX: path('x'),
+                translateY: path('y'),
+                opacity: [0, 1, 0],
+                easing: 'easeInOutSine',
+                duration: duration,
+                loop: true
+            });
+        }
+
+        function nextPhase() {
+            if (phase >= 5) return;
+            phase++;
+            document.getElementById('phaseCounter').innerText = `${phase}/5`;
+            document.getElementById('statusText').innerText = descriptions[phase];
+            resetNodes();
+
+            if (phase === 1) {
+                document.getElementById('node-docs').classList.add('active');
+                anime({ targets: '#node-docs .icon-box', scale: [1, 1.2, 1], duration: 800 });
+            } 
+            else if (phase === 2) {
+                document.getElementById('node-docs').classList.add('active');
+                document.getElementById('node-embed').classList.add('active');
+                runParticle('p1', 'line-docs-embed', 1500);
+            }
+            else if (phase === 3) {
+                document.getElementById('node-embed').classList.add('active');
+                document.getElementById('node-db').classList.add('active');
+                runParticle('p1', 'line-embed-db', 1500);
+            }
+            else if (phase === 4) {
+                document.getElementById('node-query').classList.add('active');
+                document.getElementById('node-db').classList.add('active');
+                runParticle('p1', 'line-query-db', 1500);
+            }
+            else if (phase === 5) {
+                document.getElementById('node-db').classList.add('active');
+                document.getElementById('node-llm').classList.add('active');
+                document.getElementById('node-result').classList.add('active');
+                runParticle('p1', 'line-db-llm', 1500);
+                setTimeout(() => runParticle('p2', 'line-llm-result', 1500), 750);
+                document.getElementById('nextBtn').innerText = "Pipeline Complete";
+                document.getElementById('nextBtn').classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function resetPipeline() {
+            phase = 0;
+            document.getElementById('phaseCounter').innerText = `${phase}/5`;
+            document.getElementById('statusText').innerText = descriptions[phase];
+            document.getElementById('nextBtn').innerText = "Next Step 🚀";
+            document.getElementById('nextBtn').classList.remove('opacity-50', 'cursor-not-allowed');
+            resetNodes();
+        }
+    </script>
+</body>
+</html>
