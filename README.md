@@ -2,6 +2,11 @@
 
 **An end-to-end applied AI solution for transforming unstructured insurance data into structured technical reports.**
 
+## Live Demos
+
+- [Flowchat UI] (https://abish-gupta.github.io/aGi-claims-rag-pipeline/flowchat/)
+- [Frontend UI] (https://abish-gupta.github.io/aGi-claims-rag-pipeline/frontend/)
+
 ## 🧠 The Philosophy: Build vs. Buy
 In modern AI architecture, writing custom ML models for basic document parsing is a waste of engineering hours. This pipeline operates on a strict Build vs. Buy protocol:
 1. **Buy/Integrate:** Use managed OCR (like Azure Document Intelligence) to handle messy, unstructured PDFs.
