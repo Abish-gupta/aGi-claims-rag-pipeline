@@ -4,8 +4,8 @@
 
 ## Live Demos
 
-- [Flowchat UI] (https://abish-gupta.github.io/aGi-claims-rag-pipeline/flowchat/)
-- [Frontend UI] (https://abish-gupta.github.io/aGi-claims-rag-pipeline/frontend/)
+- [Flowchat UI](https://abish-gupta.github.io/aGi-claims-rag-pipeline/flowchat/)
+- [Frontend UI](https://abish-gupta.github.io/aGi-claims-rag-pipeline/frontend/)
 
 ## 🧠 The Philosophy: Build vs. Buy
 In modern AI architecture, writing custom ML models for basic document parsing is a waste of engineering hours. This pipeline operates on a strict Build vs. Buy protocol:
